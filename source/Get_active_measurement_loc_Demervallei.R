@@ -19,7 +19,7 @@ gebieden_subset <- gebieden %>%
 gebieden_sf <- st_as_sf(gebieden_subset, coords = c("GebiedXCoordinaat", "GebiedYCoordinaat"), crs =  31370) # (Belgian Lambert 72: EPSG 31370)
 
 # Save as a GeoJSON file
-st_write(gebieden_sf, "output/gebieden.geojson", driver = "GeoJSON")
+st_write(gebieden_sf, "output/Watina/gebieden.geojson", driver = "GeoJSON")
 
 
 meetpunten <- dbGetQuery(con, "SELECT *
@@ -33,7 +33,7 @@ meetpunten_subset <- meetpunten %>%
 meetpunten_sf <- st_as_sf(meetpunten_subset, coords = c("MeetpuntXCoordinaat", "MeetpuntYCoordinaat"), crs =  31370) # (Belgian Lambert 72: EPSG 31370)
 
 # Save as a GeoJSON file
-st_write(meetpunten_sf, "output/meetpunten.geojson", driver = "GeoJSON")
+st_write(meetpunten_sf, "output/Watina/meetpunten.geojson", driver = "GeoJSON")
 
 # Read the shapefile of the Demervallei
 demer_sf <- st_read("data/Demervallei_SBZ_afbakening.shp")  # Replace with actual file path
@@ -46,7 +46,7 @@ meetpunten_sf <- st_transform(meetpunten_sf, crs = 31370)
 meetpunten_demer <- st_intersection(meetpunten_sf, demer_sf)
 
 # Save the filtered meetpunten as a new GeoJSON file
-st_write(meetpunten_demer, "output/meetpunten_Demervallei.geojson", driver = "GeoJSON")
+st_write(meetpunten_demer, "output/Watina/meetpunten_Demervallei.geojson", driver = "GeoJSON")
 
 # Extract unique MeetpuntWID values from meetpunten_demer
 meetpunt_wids <- unique(meetpunten_demer$MeetpuntWID)
@@ -55,14 +55,14 @@ meetpunt_wids <- unique(meetpunten_demer$MeetpuntWID)
 meetpunt_wids_sql <- paste(meetpunt_wids, collapse = ",")
 
 query <- sprintf("
-  SELECT 
+  SELECT
     pm.DatumWID,
-    mp.MeetpuntID,      
-    mp.MeetpuntCode,    
-    pp.PeilpuntCode,    
+    mp.MeetpuntID,
+    mp.MeetpuntCode,
+    pp.PeilpuntCode,
     CONVERT(DATETIME, CONVERT(VARCHAR(8), pm.DatumWID), 112) AS Datum,
-    pm.mTAW,  
-    pm.mMaaiveld,  
+    pm.mTAW,
+    pm.mMaaiveld,
     mw.MedewerkerVoornaam + ' ' + mw.MedewerkerNaam AS Operator,
     '' AS Remark,
     pm.PeilmetingStatus AS Gevalideerd,
@@ -71,8 +71,8 @@ query <- sprintf("
     pm.PeilmetingCommentaar,
     pp.PeilpuntVersie
   FROM dbo.FactPeilMeting pm
-  LEFT JOIN dbo.DimPeilpunt pp ON pp.PeilpuntWID = pm.PeilpuntWID 
-  LEFT JOIN dbo.DimMeetpunt mp ON mp.MeetpuntWID = pp.MeetpuntWID  
+  LEFT JOIN dbo.DimPeilpunt pp ON pp.PeilpuntWID = pm.PeilpuntWID
+  LEFT JOIN dbo.DimMeetpunt mp ON mp.MeetpuntWID = pp.MeetpuntWID
   LEFT JOIN dbo.DimMedewerker mw ON mw.MedewerkerWID = pm.MedewerkerWID
   LEFT JOIN (SELECT DISTINCT PeilMetingTypeCode AS MetingTypeCode,
                      CASE WHEN PeilMetingTypeCode = 'BUIT' THEN 'Meting buiten de buis'
@@ -80,11 +80,11 @@ query <- sprintf("
                           WHEN PeilMetingTypeCode = 'DIVER' THEN 'Sondemeting'
                           WHEN PeilMetingTypeCode = 'HAND' THEN 'Handmatige meting'
                      END AS MetingTypeNaam
-            FROM dbo.FactPeilMeting 
+            FROM dbo.FactPeilMeting
             UNION ALL
             SELECT 'ONBEK', 'Onbekend'
   ) AS mt ON mt.MetingTypeCode = pm.PeilMetingTypeCode
-  WHERE pm.DatumWID >= 20180101  
+  WHERE pm.DatumWID >= 20180101
     AND mp.MeetpuntWID IN (%s)
   ORDER BY pm.DatumWID
 ", meetpunt_wids_sql)
@@ -121,7 +121,7 @@ if (!dir.exists(output_dir)) {
 for (meetpunt in unique(peilmetingen_demer$MeetpuntCode)) {
   # Filter data for the current MeetpuntCode
   meetpunt_data <- peilmetingen_demer %>% filter(MeetpuntCode == meetpunt)
-  
+
   # Create the plot
   p <- ggplot(meetpunt_data, aes(x = Datum, y = mMaaiveld, colour = PeilpuntCode)) +
     geom_line() +
@@ -134,7 +134,7 @@ for (meetpunt in unique(peilmetingen_demer$MeetpuntCode)) {
           plot.background = element_rect(fill = "white", color = NA),
           legend.background = element_rect(fill = "white", color = NA),
           legend.key = element_rect(fill = "white", color = NA))
-  
+
   # Save the plot
   ggsave(filename = paste0(output_dir, "/", meetpunt, ".png"), plot = p, width = 8, height = 5, dpi = 300)
 }
@@ -144,4 +144,4 @@ meetpunten_filtered <- meetpunten_demer %>%
   filter(MeetpuntCode %in% unique(peilmetingen_demer$MeetpuntCode))
 
 # Save as a new GeoJSON file
-st_write(meetpunten_filtered, "output/meetpunten_Demervallei_actief2018.geojson", driver = "GeoJSON", delete_dsn = TRUE)
+st_write(meetpunten_filtered, "output/Watina/meetpunten_Demervallei_actief2018.geojson", driver = "GeoJSON", delete_dsn = TRUE)

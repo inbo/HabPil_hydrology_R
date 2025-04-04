@@ -28,7 +28,6 @@ con <- connect("https://openeo.vito.be")
 
 login()
 
-
 # Define bounding box from transformed points
 
 aoi <- list(
